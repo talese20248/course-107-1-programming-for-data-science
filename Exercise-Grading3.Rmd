@@ -1,13 +1,13 @@
 ---
-title: "experiment purl"
+title: "Grading with flexible methods"
 author: "林茂廷"
-date: "10/21/2018"
 output: html_document
 params:
-  dirSet: "./Exercise2/ans"
-  hwcode: "hw2"
+  dirSet: "./Exercise1/ans"
+  hwcode: "hw1"
   gskey: "16XPjoHB_Pt7Vwby5QFwqFO2fW-rJahS4xyijiX2S8CA"
   gsfileMapping: "1J9A6We6cdDfOT-11gBgbHC9Qzqu0d457aquy5k1IOCc"
+  gsPublicKey: "1NespAnPgIdVqtSOntojQpBhoJWbCDN4cnSpqcShc9O0"
 ---
 
 ```{r setup, include=FALSE}
@@ -20,6 +20,7 @@ library(knitr)
 library(googlesheets)
 gsCorrected<-gs_key(params$gskey)
 gsMapping<-gs_key(params$gsfileMapping)
+gsPublic<-gs_key(params$gsPublicKey)
 wsName<-params$hwcode
 ```
 
@@ -30,7 +31,6 @@ wsName<-params$hwcode
 ```{r convert Rmd to R}
 listOfRmds <- list_files_with_exts(params$dirSet,"Rmd")
 listOfRs <- str_replace(listOfRmds,"Rmd","R")
-file.remove(listOfRs)
 
 fileListPurl <- function(ix){
   tryCatch({
@@ -155,32 +155,67 @@ ansLoc<-str_which(upperListOfFiles,"ANS.R")
 studentAnswers <- ansCollection[-ansLoc]
 studentListOfRs <- listOfRs[-ansLoc]
 correctAnswers <- ansCollection[[ansLoc]]
+```
+
+```{r}
+    ## 彈性改題函數
+correctFun <- function(.studentAns_i,.correctAns_i,type="i",method=NULL) {
+  switch(type,
+         "i" = identical(.studentAns_i,.correctAns_i),
+         "b" = all(.studentAns_i %in% .correctAns_i),
+         method(.studentAns_i,.correctAns_i)
+  )
+}
+```
+
+```{r}
 correctAnswers %>% names -> ansNames
-ansNames[1:(length(ansNames)-2)] -> ansNames
+#isolate ansX parts
+ansNames %>% str_which("ans") -> ansParts
 
 results<-c()
-for(i in 1:length(studentAnswers)){
-  # 對答案
-  #i<-1
-  result_i <- map2_int(
-            studentAnswers[[i]][ansNames],
-            correctAnswers[ansNames],
-            identical)
-  newResult<-result_i
+for(j in 1:length(studentAnswers)){
+  #j<-1 #第j個學生
+  studentAnswers_j <- studentAnswers[[j]]
   
-  results <- rbind(results, newResult)
+  result_j<-c()
+  for(i in 1:length(ansParts)){
+  #第i題
+    chunkName_i <- ansNames[ansParts[i]] #第i題的chunk name
+    # 檢查有無對應改題method
+    chunkNumber_i <- str_split_fixed(chunkName_i,"ans",n=2)[,2]
+    methodName_i<-paste0("m",chunkNumber_i)
+    correctAns_i <- correctAnswers[[chunkName_i]]
+    correctMethod_i <- correctAnswers[[methodName_i]]
+    
+    if(is.character(correctMethod_i)){ #有用字串選內定改法
+      result_ij <- correctFun(studentAnswers_j[[chunkName_i]],
+                             correctAns_i,
+                             type=correctMethod_i)
+    } else if(is.null(correctMethod_i)){ #沒有設定，用預設identical
+      result_ij <- correctFun(studentAnswers_j[[chunkName_i]],
+                             correctAns_i)
+    } else { #自定函數
+      result_ij <- correctFun(studentAnswers_j[[chunkName_i]],
+                             correctAns_i,type="o",
+                             method=correctMethod_i)
+    }
+    result_j<-c(result_j,result_ij)*1
+  }
+  results <- rbind(results, result_j)
 }
+colnames(results) <- ansNames[ansParts]
+results <- as.data.frame(results)
 
-results %>% as.data.frame() -> results
 studentAnswers %>% map_chr(~.$name) -> results$姓名
 studentAnswers %>% map_chr(~.$id) -> results$學號
-results$檔名 <- studentListOfRs
+#results$檔名 <- studentListOfRs
 ```
 
 ```{r upload result to GS}
 gsMapping %>% gs_read(ws=wsName) -> fileMapping
 
-fileMapping %>% select(姓名,學號) %>%
+fileMapping %>% select(姓名,學號,新檔名) %>%
   mutate(學號=as.character(學號)) %>%
   left_join(results %>% select(-姓名),by=c("學號")) -> mergedResults
 
@@ -188,31 +223,29 @@ mergedResults %>% mutate(
   上傳檔正常=(學號 %in% results$學號)) -> mergedResults
 ```
 
-<<<<<<< HEAD
-```{r}
-=======
 ```{r, eval=T}
 publicResults <-
   mergedResults %>% select(
-    -姓名,-檔名
+    -姓名,-新檔名
   )
   
->>>>>>> upstream/master
 if(wsName %in% gs_ws_ls(gsCorrected)){
   gs_edit_cells(gsCorrected,ws=wsName,
                 input=mergedResults, col_names = TRUE,
                 anchor="A1")
-<<<<<<< HEAD
-  
-=======
   gs_edit_cells(gsPublic,ws=wsName,
                 input=publicResults, col_names = TRUE,
                 anchor="A1")  
->>>>>>> upstream/master
 } else {
   gs_ws_new(gsCorrected,ws=wsName,
             input=mergedResults, col_names = TRUE,
             anchor="A1")  
+  gs_ws_new(gsPublic,ws=wsName,
+              input=publicResults, col_names = TRUE,
+              anchor="A1")
+
 }
+
+file.remove(listOfRs)
 ```
 

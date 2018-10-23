@@ -1,0 +1,47 @@
+---
+title: "練習1"
+date: "2018-10-23"
+output: html_document
+params:
+  studentID: "410773071"
+  studentName: "李杰庭"
+---
+
+
+## 1
+```{r}
+library(readr)
+bankdata <- read_csv("https://raw.githubusercontent.com/tpemartin/github-data/master/bankdata.csv")
+```
+
+
+```
+
+### 1.1
+將**銀行**變數改成factor
+```{r ans11}
+as.factor(bank)
+```
+
+### 1.2
+將年月改成西元年月
+```{r ans12}
+a <- seq(ymd("2001-01-01"),ymd("2018-09-01"),by="month")
+b <- seq(ymd("2001-01-01"),ymd("2018-09-01"),by="quarter")
+c <- seq(ymd("2001-01-01"),ymd("2018-09-01"),by="year")
+
+民國年月<-c("099/01","099/02","099/03")
++years(1911)
+```
+
+## 2
+[潭美颱風(Typhoon Trami)](https://google.org/crisismap/google.com/2018-trami)
+library(dplyr)
+library(lubridate)
+a <- ymd("2017-01-31") 
+b <- ymd_hms("2017-01-31 20:11:59")
+
+```{r ans2}
+```
+
+
